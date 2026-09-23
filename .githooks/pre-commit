@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Versioned pre-commit hook — formats staged .ts/.tsx/.js/.jsx/.json/.md files with
+# Prettier before commit, so formatting issues never reach CI (`format:check`) first.
+# No dependency is added: this shells out to the `prettier` already in devDependencies
+# via `npx`, which resolves the locally installed binary without a network fetch.
+#
+# Not auto-active on a fresh clone — `core.hooksPath` is local git config, not versioned.
+# `.claude/hooks/session-start-context.sh` sets it automatically each session; see there
+# for the one-time-per-clone activation, and CLAUDE.md's Commands table for the manual
+# equivalent (`git config core.hooksPath .githooks`).
+set -uo pipefail
+
+# Staged formattable files only (Added/Copied/Modified/Renamed) — never touch the whole repo.
+staged_js="$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json')"
+
+# Nothing staged that matches — exit 0 immediately, no-op.
+[[ -z "$staged_js" ]] && exit 0
+
+if ! command -v npx >/dev/null 2>&1; then
+  echo "pre-commit: npx not found on PATH — skipping Prettier formatting." >&2
+  exit 0
+fi
+
+# Format in place, then re-stage exactly the files we formatted so the committed
+# content matches what's on disk. `|| true`: a Prettier failure (e.g. a syntax error
+# it can't parse) must not block the commit — CI's format:check/lint will still catch it.
+echo "$staged_js" | xargs -r npx --no-install prettier --write -- 2>/dev/null || true
+echo "$staged_js" | xargs -r git add --
