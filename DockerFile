@@ -1,0 +1,58 @@
+# Multi-stage build — keeps the final image to just production deps + built
+# code, not the full dev toolchain. Shared by both `app` and `sync-worker`
+# in docker-compose.yml; they differ only in the command each one runs.
+#
+# Assumptions flagged, not guessed as settled — adjust once the real repo
+# exists:
+#   - Plain Node/Express (matches Bluegrass Middleware), not TypeScript.
+#     If this project uses TypeScript, add a `RUN npm run build` step in the
+#     build stage and copy the compiled `dist/` output instead of raw `src/`.
+#   - package.json has a "start" script that boots the Express server
+#     (e.g. `node server.js` or similar) — used as the default CMD, which
+#     the `app` service in docker-compose.yml uses as-is, and which
+#     `sync-worker` overrides with `["node", "workers/sync.js"]`.
+#   - Node 20 LTS — matches current Node LTS as of this writing; bump if the
+#     project needs a specific version the middleware already pins to.
+
+# ---- Build stage ----
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# Install deps first so this layer is cached unless package.json/lock changes
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Now bring in the rest of the source
+COPY . .
+
+# Uncomment if/when this project has a build step (TypeScript, bundling, etc):
+# RUN npm run build
+
+# ---- Runtime stage ----
+FROM node:20-alpine AS runtime
+
+# Run as a non-root user rather than the image's default root
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Only production dependencies in the final image
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Bring in application code from the build stage rather than re-copying from
+# host, so both stages agree on exactly what shipped
+COPY --from=build /app .
+
+USER appuser
+
+EXPOSE 3003
+
+# Basic container-level healthcheck — assumes a GET /health route exists or
+# will exist; add one if it doesn't (a simple 200-OK endpoint is enough).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+CMD ["npm", "start"]
