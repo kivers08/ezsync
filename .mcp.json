@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "stdio",
+      "command": "${CLAUDE_PROJECT_DIR:-.}/scripts/github-mcp-server.sh",
+      "env": {}
+    }
+  }
+}

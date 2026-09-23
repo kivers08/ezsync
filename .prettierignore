@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+out/
+# generated migration SQL + vendored/generated API specs
+packages/db/migrations/
+packages/shared/types/vendor/
+# hand-formatted framework markdown — keep intentional line breaks
+*.md

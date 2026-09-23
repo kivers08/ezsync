@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Next.js (apps/web)
+.next/
+out/
+
+# Env & secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Docker / local data volumes
+infra/**/data/
+pgdata/
+
+# Local git-hook activation marker
+.git/claude-human-merge-ok
+
+# Drizzle local artifacts (generated migrations ARE committed; drop only local dumps)
+*.dump
